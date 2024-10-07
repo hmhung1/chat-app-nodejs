@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat cùng Code dạo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #login-container, #signup-container {
+            max-width: 400px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 8px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #messages {
+            list-style-type: none;
+            padding: 0;
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        #messages li {
+            padding: 10px;
+            margin: 5px 10px;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        #messages li:nth-child(odd) {
+            background-color: #e1f5fe;
+            align-self: flex-start;
+        }
+        #messages li:nth-child(even) {
+            background-color: #fff;
+            align-self: flex-end;
+        }
+        #chat-form {
+            display: flex;
+            max-width: 600px;
+            margin: auto;
+            margin-top: 10px;
+        }
+        #chat-mes {
+            flex: 1;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #chat-form button {
+            flex-shrink: 0;
+            padding: 10px 15px; 
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <h1>App chat</h1>
+    <div class="container">
+        <div id="login-container">
+            <h2>Đăng nhập</h2>
+            <form id="login-form">
+                <input type="text" id="login-username" placeholder="Tên người dùng" required />
+                <input type="password" id="login-password" placeholder="Mật khẩu" required />
+                <button type="submit">Đăng nhập</button>
+            </form>
+            <button id="show-signup">Đăng ký</button>
+        </div>
+
+        <div id="signup-container" style="display: none;">
+            <h2>Đăng ký</h2>
+            <form id="signup-form">
+                <input type="text" id="signup-username" placeholder="Tên người dùng" required />
+                <input type="password" id="signup-password" placeholder="Mật khẩu" required />
+                <button type="submit">Đăng ký</button>
+            </form>
+            <button id="show-login">Đăng nhập</button>
+        </div>
+
+        <ul id="messages" style="display: none;"></ul>
+
+        <form id="chat-form" style="display: none;">
+            <input type="text" id="chat-mes" placeholder="Nhập tin nhắn" />
+            <button id="send-chat">Gửi</button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const chatForm = document.querySelector('#chat-form');
+        const chatMes = document.querySelector('#chat-mes');
+        const messages = document.querySelector('#messages');
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const message = chatMes.value;
+            socket.emit('on-chat', { name: localStorage.getItem('username'), message });
+            chatMes.value = '';
+        });
+
+        socket.on('user-chat', (message) => {
+            const chatItem = document.createElement('li');
+            chatItem.textContent = `${message.name}: ${message.message}`;
+            messages.appendChild(chatItem);
+            messages.scrollTop = messages.scrollHeight; // Tự động cuộn xuống dưới
+        });
+
+        // Đăng ký
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+            socket.emit('register', { username, password });
+        });
+
+        // Đăng nhập
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            socket.emit('login', { username, password });
+        });
+
+        socket.on('register-response', (data) => {
+            if (data.success) {
+                alert('Đăng ký thành công!');
+                document.getElementById('signup-container').style.display = 'none';
+                document.getElementById('login-container').style.display = 'block';
+            } else {
+                alert(data.message);
+            }
+        });
+
+        socket.on('login-response', (data) => {
+            if (data.success) {
+                alert('Đăng nhập thành công!');
+                localStorage.setItem('username', document.getElementById('login-username').value);
+                document.getElementById('login-container').style.display = 'none';
+                chatForm.style.display = 'flex';
+                messages.style.display = 'block'; // Hiện danh sách tin nhắn
+            } else {
+                alert(data.message);
+            }
+        });
+
+        document.getElementById('show-signup').addEventListener('click', () => {
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('signup-container').style.display = 'block';
+        });
+
+        document.getElementById('show-login').addEventListener('click', () => {
+            document.getElementById('signup-container').style.display = 'none';
+            document.getElementById('login-container').style.display = 'block';
+        });
+
+        socket.on('load-history', (history) => {
+            history.forEach((message) => {
+                const chatItem = document.createElement('li');
+                chatItem.textContent = `${message.name}: ${message.message}`;
+                messages.appendChild(chatItem);
+            });
+        });
+    </script>
+</body>
+</html>
